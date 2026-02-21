@@ -1,0 +1,84 @@
+---
+title: "Junyi Subset summary stats"
+author: "Vikraanth Sinha"
+date: "2023-07-08"
+output: pdf_document
+---
+
+```{r}
+library(dplyr)
+```
+
+
+```{r}
+jsub <- read.csv('junyiSubset.csv')
+head(jsub)
+```
+
+
+```{r}
+hist(log(jsub$total_sec_taken), xlab="total time taken (sec)", main="Distribution of time taken on questions", breaks=seq(0, max(log(jsub$total_sec_taken)), by=max(log(jsub$total_sec_taken))/ceiling(log2(nrow(jsub))+1)))
+```
+
+
+use bar chart instead of histogram, groups based on number of attempts (1,2,3+)
+```{r}
+barplot(table(jsub$total_attempt_cnt), xlim=c(0,10), log="y")
+```
+
+
+```{r}
+barplot(table(jsub$used_hint_cnt), xlim=c(0,13), log="y")
+```
+
+
+```{r}
+barplot(table(jsub$exercise_problem_repeat_session), xlim=c(1,22), log="y")
+```
+
+
+In the following blocks of code, I am trying to explore how students' confidence varies based on the number of problems they have visited at a certain point. I do this by comparing the time taken on the current question, the number of hints used, and the number of attempts the student has taken on the current problem.
+
+```{r}
+plot(x=jsub$problem_number, y=jsub$total_sec_taken, main="Time Taken on Different Problems",
+     xlab="problem number", ylab="time taken (sec)")
+```
+
+
+```{r}
+plot(x=jsub$problem_number, y=jsub$total_attempt_cnt, main="Number of Attempts on Problems",
+     xlab="problem number", ylab="number of attempts")
+```
+
+
+```{r}
+plot(x=jsub$problem_number, y=jsub$used_hint_cnt, main="Hints Used on Problems",
+     xlab="problem number", ylab="hints used")
+```
+Based on the plots above, students are taking less time, using fewer hints, and using fewer attempts as they progress. This is an indication that their performance is improving and they are having less difficulty.
+
+
+```{r}
+x_cols <- c("problem_number", "total_sec_taken", "total_attempt_cnt", "used_hint_cnt")
+print(colnames(x_cols))
+for(col in x_cols)
+{
+  formula <- reformulate("is_correct", response=col)
+  print(t.test(formula, data=jsub))
+}
+```
+
+
+problem_number:
+The t-test shows that the mean number of problems encountered differs between the group of correctly answered questions and the group of incorrectly answered questions. This makes sense because students are more likely to answer a question correctly if they have seen more questions up until that point.
+
+total_sec_taken:
+According to the t-test, the mean time taken on correctly answered problems is far less than that for incorrectly answered problems. This shows that students are better able to answer questions when they are confident of their answers.
+
+total_attempt_cnt:
+The t-test shows that the mean number of attempts on incorrectly answered questions is greater than that for correctly answered questions. This makes sense because an answer is only marked correctly if the student gets it right on their first attempt.
+
+used_hint_cnt:
+The t-test shows that the mean number of hints used on correctly answered questions is greater than that for incorrectly answered questions. This is because answers are only counted as correct if no hints are used.
+
+

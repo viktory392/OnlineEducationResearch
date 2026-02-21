@@ -1,0 +1,173 @@
+---
+title: "Time Series Analysis"
+author: "Vikraanth Sinha"
+date: "2023-12-27"
+output: pdf_document
+---
+
+
+```{r}
+# From geeksforgeeks.com:
+# Weekly data of COVID-19 positive cases from 1/22/2020 to 4/15/2020
+x <- c(580, 7813, 28266, 59287, 75700, 87820, 95314, 126214,
+       218843, 471497, 936851, 1508725, 2072113)
+
+# library required for decimal_date() function
+library(lubridate)
+ 
+# output to be created as png file
+png(file ="timeSeries.png")
+
+# creating time series object from date 22 January, 2020
+mts <- ts(x, start = decimal_date(ymd("2020-01-22")), frequency=365.25/7)
+
+# plotting the graph
+plot(mts, xlab ="Weekly Data", ylab ="Total Positive Cases",
+     main ="COVID-19 Pandemic", col.main ="darkgreen")
+ 
+# saving the file
+png(file="covid-cases.png")
+dev.off()
+```
+
+
+```{r}
+# Weekly data of COVID-19 positive cases and deaths from 1/22/2020 to 4/15/2020
+ 
+positiveCases <- c(580, 7813, 28266, 59287, 75700, 87820, 95314, 126214,
+                   218843, 471497, 936851, 1508725, 2072113)
+ 
+deaths <- c(17, 270, 565, 1261, 2126, 2800, 3285, 4628, 8951,
+            21283, 47210, 88480, 138475)
+
+# library required for decimal_date() function
+library(lubridate)
+ 
+# output to be created as png file
+png(file="multivariateTimeSeries.png")
+ 
+# creating multivariate time series object
+# from date 22 January, 2020
+mts <- ts(cbind(positiveCases, deaths), start = decimal_date(ymd("2020-01-22")), frequency=365.25/7)
+
+# plotting the graph
+plot(mts, xlab="Weekly Data", main="Cases", col.main="darkgreen")
+
+# saving the file
+png(file="covid-cases-and-deaths.png")
+dev.off()
+```
+
+
+```{r}
+library(lubridate)
+library(forecast)
+
+# my height in inches every year since my birth
+x <- c(19, 24, 28, 35, 40, 43, 47, 51, 53, 55, 58, 60,
+       63, 65, 68, 69, 70, 70, 71, 71)
+
+# time series object from January 8, 2004
+mts <- ts(x, start = decimal_date(ymd("2004-01-08")), frequency=1)
+
+# fit to a simple linear model
+# Normally i would fit to trend and season, but the data doesn’t ever decrease
+fit <- tslm(mts ~ trend)
+plot(forecast(fit, h=20), xlab="Annual Data", ylab="My Height in Inches")
+
+# save output as png file
+png(file="Vik-height.png")
+dev.off()
+```
+
+
+```{r}
+# choose student for time series analysis: student 947 has the most entries
+# filter out unnecessary data
+student947 <- filter(raw_data, uuid==uuids[947])
+student947 <- student947[order(student947$timestamp_TW),]
+student947 <- student947[-c(1, 6, 15:17, 19:25)]
+
+# group by timestamp; how do I set level to the min level at said time?
+student947 <- student947 %>% group_by(timestamp_TW) %>%
+                    summarise(avg_duration = mean(total_sec_taken), 
+                              percent_correct = 100*mean(is_correct_indicator), 
+                              percent_hint_used = mean(hint_indicator),
+                              level = max(level), .groups = 'drop')
+student947
+```
+
+
+```{r}
+# choose student for time series analysis: student 947 has the most entries
+# filter out unnecessary data
+student947 <- filter(raw_data, uuid==uuids[947])
+student947 <- student947[order(student947$timestamp_TW),]
+student947 <- student947[-c(1, 6, 15:17, 19:25)]
+
+# group by timestamp; how do I set level to the min level at said time?
+student947 <- student947 %>% group_by(timestamp_TW) %>%
+                    summarise(avg_duration = mean(total_sec_taken), 
+                              percent_correct = 100*mean(is_correct_indicator), 
+                              percent_hint_used = mean(hint_indicator),
+                              level = max(level), .groups = 'drop')
+student947
+
+# time series object from starting point
+start_time <- min(student947$timestamp_TW)
+start_time
+timeseries <- ts(student947$level, start = decimal_date(ymd(as.Date(start_time))), frequency=12)
+timeseries
+
+# plot graph
+plot(timeseries, xlab ="time", ylab ="level", main ="Student Level Up", col.main ="darkgreen")
+
+# try regression, for each person use x=sequence from 1 to 100, y=level
+# regression coefficient tells whether level goes up and down
+# count how many level ups and level downs
+# compare grade levels: are ppl leveling up more in lower grades?
+
+
+# fit to simple linear model
+library(forecast)
+fit <- tslm(timeseries ~ trend)
+plot(forecast(fit, h=20), xlab="time", ylab="level")
+
+# save file
+png(file="timeSeries_level.png")
+dev.off()
+```
+
+
+```{r}
+library(fable)
+library(fabletools)
+library(tidyverse)
+library(tidymodels)
+
+student947 <- filter(raw_data, uuid==uuids[947])
+student947 <- student947[order(student947$timestamp_TW),]
+student947 <- student947[ -c(1, 6, 15:17, 19:25)]
+student947
+
+# group by timestamp; how do I set level to the min level at said time?
+student947 <- student947 %>% group_by(timestamp_TW) %>%
+                    summarise(avg_duration = mean(total_sec_taken), 
+                              percent_correct = 100*mean(is_correct_indicator), 
+                              percent_hint_used = mean(hint_indicator),
+                              level = mean(level), .groups = 'drop')
+student947$timeseries <- ts(student947$level, start =
+                   decimal_date(ymd(as.Date(start_time))), frequency=525960)
+student947
+
+model_1 <- tslm(timeseries ~ percent_hint_used + percent_correct + avg_duration + trend + season, data=as.ts(student947))
+summary(model_1)
+
+# student5 %>%
+#   fabletools::model(fable::TSLM(timeseries ~ percent_hint_used + percent_correct + avg_duration)) %>%
+#   report()
+
+# fit.consMR <- tslm(timeseries ~ percent_hint_used + percent_correct + avg_duration, data=as.ts(student8))
+# plot(forecast(fit, newdata=student8[-c(1,6)], h=20), xlab="time", ylab="level")
+```
+

@@ -1,0 +1,52 @@
+---
+title: "Regression Analysis"
+author: "Vikraanth Sinha"
+date: "2024-04-05"
+output: pdf_document
+---
+
+
+```{r}
+raw_data <- raw_data[order(raw_data$uuid, raw_data$timestamp_TW),]
+user_data <- raw_data %>% group_by(uuid) %>%
+                    summarise(avg_duration = mean(total_sec_taken),
+                              avg_attempts = mean(total_attempt_cnt),
+                              percent_correct = 100*mean(is_correct_indicator),
+                              first_login_date_TW = first_login_date_TW[1],
+                              user_grade = user_grade[1],
+                              user_city = user_city[1],
+                              self_coach_indicator = self_coach_indicator[1],
+                              percent_hint_used = mean(hint_indicator),
+                              level_change = max(level)-min(level),
+                              num_upgrades = sum(is_upgrade == 'True', na.rm = TRUE),
+                              num_downgrades = sum(is_downgrade == 'True', na.rm = TRUE),
+                              .groups = 'drop')
+```
+
+
+```{r}
+lm_level <- lm(level_change ~ avg_duration + percent_hint_used + avg_attempts,
+               data = user_data)
+summary(lm_level)
+
+res_level <- resid(lm_level)
+plot(fitted(lm_level), res_level)
+abline(0,0)
+qqnorm(res_level)
+qqline(res_level)
+```
+
+
+```{r}
+lm_upgrade <- lm(num_upgrades ~ avg_duration + percent_hint_used + avg_attempts,
+               data = user_data)
+summary(lm_upgrade)
+res_upgrade <- resid(lm_upgrade)
+plot(fitted(lm_upgrade), res_upgrade)
+abline(0,0)
+qqnorm(res_upgrade)
+qqline(res_upgrade)
+```
+
+
+

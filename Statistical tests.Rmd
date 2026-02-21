@@ -1,0 +1,44 @@
+---
+title: "Statistical tests"
+author: "Vikraanth Sinha"
+date: "2024-03-11"
+output: pdf_document
+---
+
+
+```{r}
+user_data$percent_correct[user_data$percent_correct==0] <- 1
+boxplot(user_data$percent_correct ~ user_data$user_grade, col='steelblue',
+        main='Students Performance by Grade Level', xlab='Grade', ylab='Score')
+```
+
+
+```{r}
+# one-way anova with grade level
+grade_aov <- aov(log(user_data$percent_correct) ~ as.factor(user_data$user_grade),
+                 data=user_data)
+summary(grade_aov)
+```
+
+
+```{r}
+library(DescTools)
+DunnettTest(x=log(user_data$percent_correct+1), g=as.factor(user_data$user_grade),
+            control=6)
+```
+
+
+```{r}
+library(ggplot2)
+
+# interaction plot
+interaction.plot(x.factor=user_data$user_grade, trace.factor=user_data$gender,
+                 response=user_data$percent_correct, fun=mean, type="b",
+                 col=c("black","red"), pch=c(19,17), fixed=TRUE)
+
+# main effects plots
+ggplot(user_data, aes(x = as.factor(user_grade), y = percent_correct)) + geom_point() +
+  geom_line(aes(group=1), colour="blue") + stat_summary(fun=mean, geom="point", size=3, shape=23, fill="red") + labs(title="Main Effect Plot", x="Grade", y="Score") + theme_minimal()
+```
+
+

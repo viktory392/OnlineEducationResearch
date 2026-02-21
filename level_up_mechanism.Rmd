@@ -1,0 +1,68 @@
+---
+title: "Level up mechanism"
+author: "Vikraanth Sinha"
+date: "2023-08-22"
+output: pdf_document
+---
+
+```{r}
+jsub <- read.csv('junyiSubset.csv')
+info_user <- read.csv('/Users/vikraanthsinha/Desktop/Online education/datasets/Junyi20/archive/Info_UserData.csv')
+raw_data <- merge(x=jsub, y=info_user, by='uuid')
+```
+
+
+```{r}
+library(dplyr)
+raw_data <- raw_data[order(raw_data$timestamp_TW),]
+user1 <- filter(raw_data, uuid == 'OCA4QnfsV4shkAu2Qstn26k440ia4yLeO8XRVN8vk8k=')
+head(user1)
+```
+
+
+filter by uuid and then ucid, sort by problem number
+
+```{r}
+ex <- filter(user1, ucid == "q19yLKk/sVMh6RTyMr5ukD1q4LIeGdKKIiUsjpZAQL0=")
+ex <- ex[order(ex$problem_number),]
+ex
+```
+
+
+
+```{r}
+user1$before_upgrade <- NA
+user1$before_downgrade <- NA
+for(i in 1:nrow(ex))
+  if(ex[i,]$is_upgrade == 'True')
+    ex[i-1,]$before_upgrade <- 'True'
+  if(ex[i,]$is_downgrade == 'True')
+    ex[i-1,]$before_downgrade <- 'True'
+ex
+```
+
+
+```{r}
+before_upgrade <- filter(user1, before_upgrade == 'True')
+before_downgrade <- filter(user1, before_downgrade == 'True')
+before_upgrade
+before_downgrade
+other <- filter(user1, (is.na(before_upgrade) & is.na(before_downgrade)))
+other
+```
+
+
+```{r}
+t.test(before_upgrade$total_sec_taken, other$total_sec_taken)
+```
+
+
+```{r}
+t.test(before_upgrade$used_hint_cnt, other$used_hint_cnt)
+```
+
+From the t-tests above, it seems like students take less time to answer questions and use fewer hints before they level up. Unfortunately, I wasn't able to find any data on these students for leveling down because it does not seem like they leveled down at all.
+
+
+
+

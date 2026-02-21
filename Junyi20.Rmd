@@ -1,0 +1,137 @@
+---
+title: "Junyi20 Summary Stats"
+author: "Vikraanth Sinha"
+date: "2023-07-03"
+output: pdf_document
+---
+
+```{r}
+library("dplyr")
+library(psych)
+```
+
+
+Data: InfoUser
+Contents: Demographic and performance info about students
+Number of rows: 73K
+
+```{r}
+info_user <- read.csv('Info_UserData.csv')
+head(info_user)
+```
+
+
+```{r}
+# summary statistics
+describe(info_user)
+```
+
+
+
+
+```{r}
+# scatter matrix
+info_user_num <- select_if(info_user, is.numeric)
+plot(info_user_num, pch=20, cex=1.5, col='steelblue')
+```
+
+Meeting notes:
+
+Want to predict points based on other variables
+- Ex: does gender/city/being self-taught have an impact on scores?
+
+Share smaller portions of dataset in dropbox folder
+
+Hints: is the hint mechanism correlated w/performance of students?
+
+
+To do:
+histogram for each variable
+statistical comparison between variables (t-test)
+look at time series data analysis tutorial
+
+
+```{r}
+# linear model
+lm_user <- lm(points~has_teacher_cnt, data=info_user)
+summary(lm_user)
+```
+
+```{r}
+# scatter plot with best fit line
+plot(x=info_user$has_teacher_cnt, y=info_user$points, xlab="has teacher", ylab="points")
+abline(lm_user)
+```
+
+```{r}
+# diagnostic plots
+plot(lm_user)
+```
+
+
+Dataset: InfoContent
+Contents: info about learning material
+Number of rows: 1.3K
+
+```{r}
+info_content <- read.csv('/Users/vikraanthsinha/Documents/work stuff/Online education/Junyi20/archive/Info_Content.csv')
+# remove content_pretty_name, contains unicode characters that cause problems
+head(info_content[, !names(info_content) %in% c("content_pretty_name")])
+```
+
+
+
+```{r}
+# label encode categorical variables
+for(i in 3:6)
+{
+  factors <- factor(info_content[,i])
+  info_content[,i] <- as.numeric(factors)
+}
+head(info_content[, !names(info_content) %in% c("content_pretty_name")])
+```
+
+
+```{r}
+describe(info_content)
+```
+
+
+Data: Log Problem
+Content: info about problems and users who answered them
+Number of rows: 16.2M
+
+```{r}
+log_problem <- read.csv('/Users/vikraanthsinha/Documents/work stuff/Online education/Junyi20/archive/Log_Problem.csv')
+head(log_problem)
+```
+
+
+```{r}
+describe(log_problem)
+```
+
+
+```{r}
+junyi_subset <- read.csv('junyiSubset.csv')
+head(junyi_subset)
+```
+
+
+```{r}
+hist(junyi_subset$total_sec_taken, xlab="total time taken (sec)", main="Distribution of time taken on questions", breaks=seq(0, max(junyi_subset$total_sec_taken), by=max(junyi_subset$total_sec_taken)/ceiling(log2(nrow(junyi_subset))+1)))
+```
+
+
+
+```{r}
+hist(junyi_subset$total_attempt_cnt, xlab="total attempts count", main="Distribution of number of attempts per question", breaks=ceiling(log2(nrow(junyi_subset))+1))
+```
+
+
+
+```{r}
+hist(junyi_subset$used_hint_cnt, xlab="total attempts count", main="Distribution of hints used per question", breaks=ceiling(log2(nrow(junyi_subset))+1))
+```
+
+

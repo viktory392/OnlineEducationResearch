@@ -1,0 +1,227 @@
+---
+title: "User Data"
+author: "Vikraanth Sinha"
+date: "2023-08-18"
+output: pdf_document
+---
+
+
+```{r}
+jsub <- read.csv('junyiSubset.csv')
+info_user <- read.csv('/Users/vikraanthsinha/Documents/work stuff/Online education/Junyi20/archive/Info_UserData.csv')
+raw_data <- merge(x=jsub, y=info_user, by='uuid')
+head(raw_data)
+```
+
+
+```{r}
+raw_data$is_correct_indicator <- NA
+raw_data$is_correct_indicator[which(raw_data$is_correct == 'False')] <- 0
+raw_data$is_correct_indicator[which(raw_data$is_correct == 'True')] <- 1
+
+raw_data$hint_indicator <- NA
+raw_data$hint_indicator[which(raw_data$is_hint_used == 'False')] <- 0
+raw_data$hint_indicator[which(raw_data$is_hint_used == 'True')] <- 1
+
+self_coach_indicator <- NA
+raw_data$self_coach_indicator[which(raw_data$is_self_coach == 'false')] <- 0
+raw_data$self_coach_indicator[which(raw_data$is_self_coach == 'true')] <- 1
+```
+
+
+```{r}
+# create new empty dataframe
+# extract rows with given uuid
+# create row in new dataframe with current uuid, percentage questions correct, avg time taken, etc.
+# repeat for all unique uuids
+user_data <- data.frame(matrix(ncol=10, nrow=1000))
+colnames(user_data) <- c('uuid', 'percent_correct', 'avg_duration', 'avg_attempt_cnt', 'avg_hint_cnt',
+                             'percent_hint_used', 'gender', 'user_grade', 'level', 'is_self_coach')
+uuids <- unique(raw_data$uuid)
+for(i in 1:length(uuids))
+{
+  cur_user <- filter(raw_data, uuid == uuids[i])
+  user_data[i,]$uuid <- cur_user[1,]$uuid
+  user_data[i,]$percent_correct <- 100*mean(cur_user$is_correct_indicator)
+  user_data[i,]$avg_duration <- mean(cur_user$total_sec_taken)
+  user_data[i,]$avg_attempt_cnt <- mean(cur_user$total_attempt_cnt)
+  user_data[i,]$avg_hint_cnt <- mean(cur_user$used_hint_cnt)
+  user_data[i,]$percent_hint_used <- mean(cur_user$hint_indicator)
+  user_data[i,]$gender <- cur_user[1,]$gender
+  user_data[i,]$user_grade <- cur_user[1,]$user_grade
+  user_data[i,]$level <- mean(cur_user$level)
+  user_data[i,]$is_self_coach <- mean(cur_user$self_coach_indicator)
+}
+head(user_data)
+```
+
+
+
+The following t-tests compare the performance of students who are self-taught to that of students who are not self-taught:
+
+```{r}
+self_coach <- filter(user_data, is_self_coach == 1)
+not_self_coach <- filter(user_data, is_self_coach == 0)
+t.test(self_coach$percent_correct, not_self_coach$percent_correct)
+```
+
+
+```{r}
+t.test(self_coach$avg_duration, not_self_coach$avg_duration)
+```
+Based on the t-test, it seems like users who are self-taught perform better than those who are not. However, this might not be an accurate result because only 7 of the 1000 students are self-taught.
+
+
+```{r}
+t.test(self_coach$avg_attempt_cnt, not_self_coach$avg_attempt_cnt)
+```
+
+
+maybe use percent_hint because avg_hint_cnt can provide inaccurate results if students answered a different number of questions
+
+```{r}
+t.test(self_coach$percent_hint_used, not_self_coach$percent_hint_used)
+```
+
+
+```{r}
+t.test(self_coach$avg_hint_cnt, not_self_coach$avg_hint_cnt)
+```
+
+The above t-tests all yield an interesting result: students who are not self-coaches take more time to answer questions and are less consistent in answering questions correctly. I would have thought that students would perform better and feel more comfortable answering questions if they are being taught by someone else. However, the results might not be accurate because only 7 of the 1000 students in the data are self-taught.
+
+
+
+The following t-tests compare the performances of students in adjacent grade levels:
+```{r}
+for(i in 1:11)
+{
+  temp <- filter(user_data, user_grade == i)
+  temp2 <- filter(user_data, user_grade == i+1)
+  result <- t.test(temp$avg_duration, temp2$avg_duration,)
+  print(paste0("Total time taken, ", "grade", i, " vs ", "grade", i+1))
+  print(result$estimate)
+}
+```
+
+
+
+explore leveling process and behavior of students before & after upgrade or downgrade
+create new variables before_upgrade and before_downgrade
+sort individual user's data by timestamp
+look at notebook from kaggle about leveling mechanism
+
+```{r}
+library(ggplot2)
+
+user_data$level <- as.numeric(user_data$level)
+
+ggplot(raw_data, aes(level, exercise_problem_repeat_session)) +
+  geom_bar(position = "dodge", stat= "summary",fun = "mean")
+
+```
+
+
+
+
+```{r}
+for(i in 1:11)
+{
+  temp <- filter(user_data, user_grade == i)
+  temp2 <- filter(user_data, user_grade == i+1)
+  result <- t.test(temp$percent_correct, temp2$percent_correct,)
+  print(paste0("Average percent correct, ", "grade", i, " vs ", "grade", i+1))
+  print(result$estimate)
+}
+```
+Based on the above t-tests, it seems like students in higher grade levels take more time on questions and get a smaller fraction of them correct. Perhaps this is because the difficulty of questions increase with grade level.
+
+
+```{r}
+plot(user_data, pch=20, cex=1.5, col='steelblue')
+```
+
+
+```{r}
+library("corrplot")
+users_numeric <- select_if(user_data, is.numeric)
+head(users_numeric)
+corr_mat <- cor(users_numeric)
+corr_mat1 <- cor.mtest(users_numeric)
+head(round(corr_mat,2))
+corrplot(corr_mat, method="number", sig.level = c(.001, .01, .05))
+```
+
+
+```{r}
+# percent_correct vs avg_attempt_cnt (smoothed)
+library(mgcv)
+lm1 = gam(percent_correct ~ s(avg_attempt_cnt), data = user_data)
+summary(lm1)
+```
+
+
+```{r}
+# percent_correct vs avg_hint_cnt (smoothed)
+# I did not fit percent_hint_used because it is very similar to avg_hint_cnt, and fitting both might cause problems with the quality of the model
+# https://en.wikipedia.org/wiki/Multicollinearity
+lm2 <- gam(percent_correct ~ s(avg_hint_cnt), data = user_data)
+summary(lm2)
+```
+
+
+```{r}
+library(ggplot2)
+library(ggeffects)
+library(gratia)
+plot(lm2, pages=1, all.terms = TRUE)
+```
+
+
+```{r}
+library(gratia)
+draw(lm2, residuals = TRUE)
+```
+
+
+```{r}
+# percent_correct vs avg_hint_cnt & avg_attempt_cnt (both smoothed)
+lm3 = gam(percent_correct ~ s(avg_attempt_cnt) + s(avg_hint_cnt), data = user_data)
+summary(lm3)
+```
+
+
+```{r}
+draw(lm3, residuals = TRUE)
+```
+
+
+```{r}
+# percent_correct vs avg_attempt_cnt, avg_hint_cnt, & avg_attempt_cnt (all smoothed)
+lm4 = gam(percent_correct ~ s(avg_attempt_cnt) + s(avg_hint_cnt), data = user_data)
+summary(lm4)
+draw(lm4, residuals = TRUE)
+```
+
+
+```{r}
+# percent_correct vs avg_duration (smoothed)
+lm5 = gam(percent_correct ~ s(avg_duration), data = user_data)
+summary(lm5)
+```
+
+
+```{r}
+# percent_correct vs user_grade (smoothed)
+lm6 = gam(percent_correct ~ s(user_grade), data = user_data)
+summary(lm6)
+```
+
+```{r}
+# percent_correct vs user_grade (smoothed)
+lm7 <- gam(percent_correct ~ s(user_grade) + s(avg_duration) + s(avg_attempt_cnt) +
+            s(avg_hint_cnt), data = user_data)
+summary(lm7)
+```
+
+

@@ -1,0 +1,107 @@
+---
+title: "Level Up Mechanism (loops)"
+author: "Vikraanth Sinha"
+date: "2023-10-27"
+output: pdf_document
+---
+
+```{r}
+jsub <- read.csv('/Users/vikraanthsinha/Documents/work stuff/Online education/Junyi20/junyiSubset.csv')
+info_user <- read.csv('/Users/vikraanthsinha/Documents/work stuff/Online education/Junyi20/archive/Info_UserData.csv')
+raw_data <- merge(x=jsub, y=info_user, by='uuid')
+raw_data <- raw_data[order(raw_data$timestamp_TW),] # sort by timestamp
+uuids <- unique(raw_data$uuid)  # get user ids
+ucids <- unique(raw_data$ucid)  # get content ids
+```
+
+
+```{r}
+library(dplyr)
+
+raw_data$is_correct_indicator <- NA
+raw_data$is_correct_indicator[which(raw_data$is_correct == 'False')] <- 0
+raw_data$is_correct_indicator[which(raw_data$is_correct == 'True')] <- 1
+raw_data$hint_indicator <- NA
+raw_data$hint_indicator[which(raw_data$is_hint_used == 'False')] <- 0
+raw_data$hint_indicator[which(raw_data$is_hint_used == 'True')] <- 1
+
+# summarize data using groupby function
+users_summary = raw_data %>% group_by(uuid)  %>%
+                    summarise(avg_duration = mean(total_sec_taken), 
+                              percent_correct = 100*mean(is_correct_indicator), 
+                              percent_hint_used = mean(hint_indicator), 
+                              .groups = 'drop')
+
+users_summary
+```
+
+
+
+```{r}
+head(raw_data)
+library(dplyr)
+
+# matrices for avg durations
+# one row per student and one column per content
+# i used smaller dimensions for now so that it would run faster
+m <- 1000
+n <- 1300
+set.seed(944)
+student_sample <- sample(uuids,m)
+subject_sample <- sample(ucids,n)
+before_upgrade <- matrix(, nrow=length(student_sample), ncol=length(subject_sample))
+before_downgrade <- matrix(, nrow=length(student_sample), ncol=length(subject_sample))
+other <- matrix(, nrow=length(student_sample), ncol=length(subject_sample))
+
+for(i in 1:m)
+{
+  # current user
+  user <- filter(raw_data, uuid == student_sample[i])
+  for(j in 1:n)
+  {
+    # current subject
+    cur <- filter(user, ucid == subject_sample[j])
+    cur <- cur[order(cur$problem_number),]
+    
+    # order by problem number, add indicator columns for correct and hint
+    if(nrow(cur)>0)
+    {
+      filter_upgrade <- filter(cur, is_upgrade == 'True')
+      filter_downgrade <- filter(cur, is_downgrade == 'True')
+      filter_other <- filter(cur, !(is_upgrade == 'True')|(is_upgrade == 'False'))
+    }
+    
+    # take average durations for before_upgrade and other, add to matrix
+    if(nrow(filter_upgrade) > 0)
+    {
+      before_upgrade[i,j] <- mean(filter_upgrade$total_sec_taken)
+    }
+    if(nrow(filter_downgrade) > 0)
+    {
+      before_downgrade[i,j] <- mean(filter_downgrade$total_sec_taken)
+    }
+    if(nrow(filter_other) > 0)
+    {
+      other[i,j] <- mean(filter_other$total_sec_taken)
+    }
+  }
+}
+
+rowMeans(before_upgrade, na.rm=T)
+rowMeans(other, na.rm=T)
+
+t.test(rowMeans(before_upgrade, na.rm=T), rowMeans(other, na.rm=T), paired=T)
+t.test(rowMeans(before_downgrade, na.rm=T), rowMeans(other, na.rm=T), paired=T) # down is extremely sparse
+
+t.test(colMeans(before_upgrade, na.rm=T), colMeans(other, na.rm=T), paired=T)
+t.test(colMeans(before_downgrade, na.rm=T), colMeans(other, na.rm=T), paired=T)
+```
+
+
+```{r}
+hist(rowMeans(before_upgrade, na.rm=T))
+hist(rowMeans(before_downgrade, na.rm=T))
+hist(rowMeans(other, na.rm=T))
+```
+
+
